@@ -15,7 +15,8 @@ def main():
     print("Placeholder")
 
 
-def tempFuncForGettingBills(parsableHTML):
+# This function will return a dictionary containing the urls of bills and resolutions
+def createBillUrlDict(parsableHTML, baseUrl):
     soup = BeautifulSoup(parsableHTML, "html.parser")
 
     # The idea with this dictionary was to have the keys be the state of the bill, and the values be a list of the urls of the bills
@@ -47,9 +48,10 @@ def tempFuncForGettingBills(parsableHTML):
 
                     if first_data_cell and first_data_cell.find("a"):
                         href = first_data_cell.find("a")["href"]
-                        billURLDictionary[name].append(href)
+                        billURLDictionary[name].append(baseUrl + href)
 
     print(billURLDictionary)
+    return billURLDictionary
 
 
 # This will get an html object from a specified url
@@ -63,8 +65,23 @@ def getWebpageContents(url):
     return html_content
 
 
+# This ideally will return a dictionary of the HTML files that contain the actual contents of the bills
+def getListOfBillHTMLFiles(billDict):
+
+    for introducedBillUrl in billDict["Introduced"]:
+        introBillHTML = getWebpageContents(introducedBillUrl)
+    for chamberPassedBillUrl in billDict["Passed By Chamber"]:
+        chambPassBillHTML = getWebpageContents(chamberPassedBillUrl)
+    for enrolledBillUrl in billDict["Enrolled"]:
+        enrollBillHTML = getWebpageContents(enrolledBillUrl)
+    for adoptedBillUrl in billDict["Adopted"]:
+        adoptBillHTML = getWebpageContents(adoptedBillUrl)
+
+
 if __name__ == "__main__":
-    base_url = "https://legislature.mi.gov/"
+    base_url = "https://legislature.mi.gov"
     url = "https://legislature.mi.gov/Bills/DailyReport?dateFrom=2024-03-29&dateTo=2024-04-09"
+    bill_test = "https://legislature.mi.gov/Home/GetObject?objectName=2024-SR-0105"
     html_object = getWebpageContents(url)
-    tempFuncForGettingBills(html_object)
+    billDict = createBillUrlDict(html_object, base_url)
+    getListOfBillHTMLFiles(billDict)
