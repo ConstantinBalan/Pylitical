@@ -1,6 +1,11 @@
 import openai
+import pathlib
+import textwrap
 
-openai.api_key = ''
+import google.generativeai as genai
 
-def chatGPTSummarize(prompt):
-    print('Placeholder')
+openai.api_key = ""
+
+
+def SummarizeBillInfo(prompt):
+    print("Placeholder")
