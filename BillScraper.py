@@ -66,16 +66,45 @@ def getWebpageContents(url):
 
 
 # This ideally will return a dictionary of the HTML files that contain the actual contents of the bills
-def getListOfBillHTMLFiles(billDict):
-
+def getListOfBillHTMLFiles(baseUrl, billDict):
+    billNameStatusAndHtmlLinkDict = {}
     for introducedBillUrl in billDict["Introduced"]:
         introBillHTML = getWebpageContents(introducedBillUrl)
-    for chamberPassedBillUrl in billDict["Passed By Chamber"]:
-        chambPassBillHTML = getWebpageContents(chamberPassedBillUrl)
-    for enrolledBillUrl in billDict["Enrolled"]:
-        enrollBillHTML = getWebpageContents(enrolledBillUrl)
-    for adoptedBillUrl in billDict["Adopted"]:
-        adoptBillHTML = getWebpageContents(adoptedBillUrl)
+        soup = BeautifulSoup(introBillHTML, "html.parser")
+
+        # Getting the name of the bill (this is gonna be weird if the text has hyperlinks inside of hrefs, but we'll figure that out later)
+        billNameHeader = soup.find("h1", id="BillHeading")
+        billName = billNameHeader.get_text()
+
+        billDocumentsDiv = soup.find("div", class_="billDocuments")
+        # print(billDocumentsDiv)
+        if billDocumentsDiv:
+            for billDocRow in billDocumentsDiv.children:
+                print(
+                    "------------------------this is billDocRow------------------------"
+                )
+                print(billDocRow)
+                billDocHtmlEle = billDocRow.find("div", class_="html")
+                print(
+                    "------------------------this is billDocHtmlEle------------------------"
+                )
+                print(billDocHtmlEle)
+                billDocumentHtmlLink = billDocHtmlEle.find("a")["href"]
+                billDocumentFullLink = baseUrl + billDocumentHtmlLink
+                billDocTextEle = billDocRow.find("div", class_="text")
+                span_element = billDocTextEle.find("span")
+                if span_element:
+                    strong_element = span_element.find("strong")
+                if strong_element:
+                    strong_text = strong_element.get_text()
+                tuple = (strong_text, billDocumentFullLink)
+                billNameStatusAndHtmlLinkDict[billName] = [tuple]
+
+    print(billNameStatusAndHtmlLinkDict)
+
+
+def getBillDocuments(billHTMLList):
+    print("placeholder")
 
 
 if __name__ == "__main__":
@@ -84,4 +113,4 @@ if __name__ == "__main__":
     bill_test = "https://legislature.mi.gov/Home/GetObject?objectName=2024-SR-0105"
     html_object = getWebpageContents(url)
     billDict = createBillUrlDict(html_object, base_url)
-    getListOfBillHTMLFiles(billDict)
+    getListOfBillHTMLFiles(base_url, billDict)
