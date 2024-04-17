@@ -67,28 +67,34 @@ def getWebpageContents(url):
 
 # This ideally will return a dictionary of the HTML files that contain the actual contents of the bills
 def getListOfBillHTMLFiles(baseUrl, billDict):
+
+    # This will be the return value
     billNameStatusAndHtmlLinkDict = {}
+
     for introducedBillUrl in billDict["Introduced"]:
+        # Retrieve HTML of bill web page
         introBillHTML = getWebpageContents(introducedBillUrl)
+        # Assign HTML to soup object
         soup = BeautifulSoup(introBillHTML, "html.parser")
 
         # Getting the name of the bill (this is gonna be weird if the text has hyperlinks inside of hrefs, but we'll figure that out later)
         billNameHeader = soup.find("h1", id="BillHeading")
         billName = billNameHeader.get_text()
 
+        # //*[@id="BillDocumentSection"]/div[2]/div[1]/div[3]/span[1]/strong
+
+        # //*[@id="BillDocumentSection"]/div[2]/div[1]/div[3]/span[1]/strong
+        # //*[@id="BillDocumentSection"]/div[2]/div[3]/div[3]/span[1]/strong
+        # Get the billDocuments div element, which contains all of the
         billDocumentsDiv = soup.find("div", class_="billDocuments")
         # print(billDocumentsDiv)
         if billDocumentsDiv:
-            for billDocRow in billDocumentsDiv.children:
-                print(
-                    "------------------------this is billDocRow------------------------"
-                )
+            for billDocRow in billDocumentsDiv.find_all("div", class_="billDocRow"):
+                # print(   "------------------------this is billDocRow------------------------" )
                 print(billDocRow)
                 billDocHtmlEle = billDocRow.find("div", class_="html")
-                print(
-                    "------------------------this is billDocHtmlEle------------------------"
-                )
-                print(billDocHtmlEle)
+                # print(   "------------------------this is billDocHtmlEle------------------------"     )
+                # print(billDocHtmlEle)
                 billDocumentHtmlLink = billDocHtmlEle.find("a")["href"]
                 billDocumentFullLink = baseUrl + billDocumentHtmlLink
                 billDocTextEle = billDocRow.find("div", class_="text")
@@ -98,7 +104,10 @@ def getListOfBillHTMLFiles(baseUrl, billDict):
                 if strong_element:
                     strong_text = strong_element.get_text()
                 tuple = (strong_text, billDocumentFullLink)
-                billNameStatusAndHtmlLinkDict[billName] = [tuple]
+                if billName in billNameStatusAndHtmlLinkDict:
+                    billNameStatusAndHtmlLinkDict[billName].append(tuple)
+                else:
+                    billNameStatusAndHtmlLinkDict[billName] = [tuple]
 
     print(billNameStatusAndHtmlLinkDict)
 
