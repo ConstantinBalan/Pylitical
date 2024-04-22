@@ -145,15 +145,23 @@ def getListOfBillHTMLFiles(baseUrl, billDict, billStatusString):
     print(billNameStatusAndHtmlLinkDict)
 
 
+# Returns date interpolated url
+def interpolateURLWithDate(dailyReportUrl, startDate, endDate):
+    # TODO: Add validation and error handling for the url
+    url_with_date = f"{dailyReportUrl}?dateFrom={startDate}&dateTo={endDate}"
+    return url_with_date
+
+
 def getBillDocuments(billHTMLList):
     print("placeholder")
 
 
 if __name__ == "__main__":
     base_url = "https://legislature.mi.gov"
+    daily_report_url = "https://legislature.mi.gov/Bills/DailyReport"
     url = "https://legislature.mi.gov/Bills/DailyReport?dateFrom=2024-03-29&dateTo=2024-04-09"
-    bill_test = "https://legislature.mi.gov/Home/GetObject?objectName=2024-SR-0105"
-    html_object = getWebpageContents(url)
+    dail_rep_url = interpolateURLWithDate(daily_report_url, "2024-03-09", "2024-04-09")
+    html_object = getWebpageContents(dail_rep_url)
     billDict = createBillUrlDict(html_object, base_url)
     print("Checking introduced bills")
     getListOfBillHTMLFiles(base_url, billDict, "Introduced")
