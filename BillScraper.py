@@ -66,49 +66,82 @@ def getWebpageContents(url):
 
 
 # This ideally will return a dictionary of the HTML files that contain the actual contents of the bills
-def getListOfBillHTMLFiles(baseUrl, billDict):
+def getListOfBillHTMLFiles(baseUrl, billDict, billStatusString):
 
     # This will be the return value
     billNameStatusAndHtmlLinkDict = {}
+    billStatusHTMLKeyWords = []
 
-    for introducedBillUrl in billDict["Introduced"]:
+    match billStatusString:
+        case "Introduced":
+            billStatusHTMLKeyWords.append("Introduced")
+        case "Passed by Chamber":
+            billStatusHTMLKeyWords.append("Passed by the House")
+            billStatusHTMLKeyWords.append("Passed by the Senate")
+        case "Enrolled":
+            billStatusHTMLKeyWords.append("Concurred")
+            billStatusHTMLKeyWords.append("Enrolled")
+        case "Adopted":
+            billStatusHTMLKeyWords.append("Adopted")
+        case _:
+            NameError(
+                "The case check in getListOfBillHTMLFiles wasn't able to match a string."
+            )
+
+    # This is for the bills/resolutions for the Introduced section
+    for billUrl in billDict[billStatusString]:
         # Retrieve HTML of bill web page
-        introBillHTML = getWebpageContents(introducedBillUrl)
+        billHTML = getWebpageContents(billUrl)
         # Assign HTML to soup object
-        soup = BeautifulSoup(introBillHTML, "html.parser")
+        soup = BeautifulSoup(billHTML, "html.parser")
 
         # Getting the name of the bill (this is gonna be weird if the text has hyperlinks inside of hrefs, but we'll figure that out later)
         billNameHeader = soup.find("h1", id="BillHeading")
         billName = billNameHeader.get_text()
 
-        # //*[@id="BillDocumentSection"]/div[2]/div[1]/div[3]/span[1]/strong
-
-        # //*[@id="BillDocumentSection"]/div[2]/div[1]/div[3]/span[1]/strong
-        # //*[@id="BillDocumentSection"]/div[2]/div[3]/div[3]/span[1]/strong
         # Get the billDocuments div element, which contains all of the
         billDocumentsDiv = soup.find("div", class_="billDocuments")
         # print(billDocumentsDiv)
         if billDocumentsDiv:
             for billDocRow in billDocumentsDiv.find_all("div", class_="billDocRow"):
-                # print(   "------------------------this is billDocRow------------------------" )
-                print(billDocRow)
-                billDocHtmlEle = billDocRow.find("div", class_="html")
-                # print(   "------------------------this is billDocHtmlEle------------------------"     )
-                # print(billDocHtmlEle)
-                billDocumentHtmlLink = billDocHtmlEle.find("a")["href"]
-                billDocumentFullLink = baseUrl + billDocumentHtmlLink
-                billDocTextEle = billDocRow.find("div", class_="text")
-                span_element = billDocTextEle.find("span")
-                if span_element:
-                    strong_element = span_element.find("strong")
-                if strong_element:
-                    strong_text = strong_element.get_text()
-                tuple = (strong_text, billDocumentFullLink)
-                if billName in billNameStatusAndHtmlLinkDict:
-                    billNameStatusAndHtmlLinkDict[billName].append(tuple)
-                else:
-                    billNameStatusAndHtmlLinkDict[billName] = [tuple]
+                isCurrentStateHTMLDoc = False
+                # Conditional to check if this is the introduced bill version
+                # TODO:Make this a function eventually or something
+                text_div = billDocRow.find("div", class_="text")
+                if text_div:
+                    strong_text = text_div.find("strong")
+                    if any(
+                        element in strong_text.get_text()
+                        for element in billStatusHTMLKeyWords
+                    ):
+                        print(f"Found the {billStatusString} bill")
+                        isCurrentStateHTMLDoc = True
+                    else:
+                        ValueError(
+                            f"Could not find the keyword relating to {billStatusString} for {billName}"
+                        )
 
+                # This will append the status of the bill and the .html link to the dictionary if the string accompanying the html doc matches up with the billStatusString that is passed in
+                # TODO: Potentially also turn this into a function
+                # --------------------------------------------------------------
+                if isCurrentStateHTMLDoc is True:
+                    billDocHtmlEle = billDocRow.find("div", class_="html")
+                    billDocumentHtmlLink = billDocHtmlEle.find("a")["href"]
+                    billDocumentFullLink = baseUrl + billDocumentHtmlLink
+                    billDocTextEle = billDocRow.find("div", class_="text")
+                    span_element = billDocTextEle.find("span")
+                    if span_element:
+                        strong_element = span_element.find("strong")
+                    if strong_element:
+                        strong_text = strong_element.get_text()
+                    tuple = (strong_text, billDocumentFullLink)
+                    if billName in billNameStatusAndHtmlLinkDict:
+                        billNameStatusAndHtmlLinkDict[billName].append(tuple)
+                    else:
+                        billNameStatusAndHtmlLinkDict[billName] = [tuple]
+                # --------------------------------------------------------------
+
+    print(f"This is the {billStatusString} dictionary")
     print(billNameStatusAndHtmlLinkDict)
 
 
@@ -122,4 +155,11 @@ if __name__ == "__main__":
     bill_test = "https://legislature.mi.gov/Home/GetObject?objectName=2024-SR-0105"
     html_object = getWebpageContents(url)
     billDict = createBillUrlDict(html_object, base_url)
-    getListOfBillHTMLFiles(base_url, billDict)
+    print("Checking introduced bills")
+    getListOfBillHTMLFiles(base_url, billDict, "Introduced")
+    print("Checking passed bills")
+    getListOfBillHTMLFiles(base_url, billDict, "Passed by Chamber")
+    print("Checking enrolled bills")
+    getListOfBillHTMLFiles(base_url, billDict, "Enrolled")
+    print("Checking adopted bills")
+    getListOfBillHTMLFiles(base_url, billDict, "Adopted")
