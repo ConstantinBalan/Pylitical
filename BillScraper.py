@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 import requests
 import ChatSummarize
+from datetime import datetime
 
 
 def billsByDate(dateRange):
@@ -147,9 +148,29 @@ def getListOfBillHTMLFiles(baseUrl, billDict, billStatusString):
 
 # Returns date interpolated url
 def interpolateURLWithDate(dailyReportUrl, startDate, endDate):
-    # TODO: Add validation and error handling for the url
-    url_with_date = f"{dailyReportUrl}?dateFrom={startDate}&dateTo={endDate}"
-    return url_with_date
+    # Set the default to return the results for the day
+    return_url = dailyReportUrl
+    # Checks if both start and end date are empty, and if they are, returns the bare dailyReportUrl
+    if not startDate and not endDate:
+        return return_url
+
+    # Errors out if the endDate is provided with no startDate
+    if endDate and not startDate:
+        SyntaxError(
+            "ERROR - Passed in endDate but no startDate for the interpolateURLWithDate function."
+        )
+
+    start_date = datetime.strptime(startDate, "%Y-%m-%d")
+    end_date = datetime.strptime(endDate, "%Y-%m-%d")
+
+    # Checks if the date ranges are valid
+    if start_date < end_date:
+        ValueError("ERROR - Start date is before end date.")
+    elif start_date == end_date:
+        ValueError("ERROR - Start date is the same as end date.")
+
+    return_url = f"{dailyReportUrl}?dateFrom={startDate}&dateTo={endDate}"
+    return return_url
 
 
 def getBillDocuments(billHTMLList):
