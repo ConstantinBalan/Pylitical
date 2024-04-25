@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 import requests
 import ChatSummarize
+from datetime import datetime
 
 
 def billsByDate(dateRange):
@@ -8,10 +9,6 @@ def billsByDate(dateRange):
 
 
 def billsByCategory(categoryName):
-    print("Placeholder")
-
-
-def main():
     print("Placeholder")
 
 
@@ -145,15 +142,52 @@ def getListOfBillHTMLFiles(baseUrl, billDict, billStatusString):
     print(billNameStatusAndHtmlLinkDict)
 
 
+# Returns date interpolated url
+def interpolateURLWithDate(dailyReportUrl, startDate, endDate):
+    # Set the default to return the results for the day
+    return_url = dailyReportUrl
+    # Checks if both start and end date are empty, and if they are, returns the bare dailyReportUrl
+    if not startDate and not endDate:
+        return return_url
+
+    # Errors out if the endDate is provided with no startDate
+    if endDate and not startDate:
+        SyntaxError(
+            "ERROR - Passed in endDate but no startDate for the interpolateURLWithDate function."
+        )
+
+    start_date = datetime.strptime(startDate, "%Y-%m-%d")
+    end_date = datetime.strptime(endDate, "%Y-%m-%d")
+
+    # Checks if the date ranges are valid
+    if start_date < end_date:
+        ValueError("ERROR - Start date is before end date.")
+    elif start_date == end_date:
+        ValueError("ERROR - Start date is the same as end date.")
+
+    return_url = f"{dailyReportUrl}?dateFrom={startDate}&dateTo={endDate}"
+    return return_url
+
+
 def getBillDocuments(billHTMLList):
     print("placeholder")
 
 
-if __name__ == "__main__":
+def main():
+    html_url = "https://legislature.mi.gov/documents/2023-2024/billconcurred/House/htm/2023-HCB-5103.htm"
+    html_object = getWebpageContents(html_url)
+    soup = BeautifulSoup(html_object, 'html.parser')
+    all_text = soup.get_text()
+    with open('page_text.txt', 'w', encoding='utf-8') as file:
+        file.write(all_text)
+
+
+def test():
     base_url = "https://legislature.mi.gov"
+    daily_report_url = "https://legislature.mi.gov/Bills/DailyReport"
     url = "https://legislature.mi.gov/Bills/DailyReport?dateFrom=2024-03-29&dateTo=2024-04-09"
-    bill_test = "https://legislature.mi.gov/Home/GetObject?objectName=2024-SR-0105"
-    html_object = getWebpageContents(url)
+    dail_rep_url = interpolateURLWithDate(daily_report_url, "2024-03-09", "2024-04-09")
+    html_object = getWebpageContents(dail_rep_url)
     billDict = createBillUrlDict(html_object, base_url)
     print("Checking introduced bills")
     getListOfBillHTMLFiles(base_url, billDict, "Introduced")
@@ -163,3 +197,7 @@ if __name__ == "__main__":
     getListOfBillHTMLFiles(base_url, billDict, "Enrolled")
     print("Checking adopted bills")
     getListOfBillHTMLFiles(base_url, billDict, "Adopted")
+
+
+if __name__ == "__main__":
+    main()
