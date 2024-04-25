@@ -12,10 +12,6 @@ def billsByCategory(categoryName):
     print("Placeholder")
 
 
-def main():
-    print("Placeholder")
-
-
 # This function will return a dictionary containing the urls of bills and resolutions
 def createBillUrlDict(parsableHTML, baseUrl):
     soup = BeautifulSoup(parsableHTML, "html.parser")
@@ -177,7 +173,16 @@ def getBillDocuments(billHTMLList):
     print("placeholder")
 
 
-if __name__ == "__main__":
+def main():
+    html_url = "https://legislature.mi.gov/documents/2023-2024/billconcurred/House/htm/2023-HCB-5103.htm"
+    html_object = getWebpageContents(html_url)
+    soup = BeautifulSoup(html_object, 'html.parser')
+    all_text = soup.get_text()
+    with open('page_text.txt', 'w', encoding='utf-8') as file:
+        file.write(all_text)
+
+
+def test():
     base_url = "https://legislature.mi.gov"
     daily_report_url = "https://legislature.mi.gov/Bills/DailyReport"
     url = "https://legislature.mi.gov/Bills/DailyReport?dateFrom=2024-03-29&dateTo=2024-04-09"
@@ -192,3 +197,7 @@ if __name__ == "__main__":
     getListOfBillHTMLFiles(base_url, billDict, "Enrolled")
     print("Checking adopted bills")
     getListOfBillHTMLFiles(base_url, billDict, "Adopted")
+
+
+if __name__ == "__main__":
+    main()
