@@ -2,6 +2,9 @@ from bs4 import BeautifulSoup
 import requests
 import ChatSummarize
 from datetime import datetime
+import multiprocessing
+import os, sys, time
+import itertools
 
 
 def billsByDate(dateRange):
@@ -13,7 +16,7 @@ def billsByCategory(categoryName):
 
 
 # This function will return a dictionary containing the urls of bills and resolutions
-def createBillUrlDict(parsableHTML, baseUrl):
+def createBillUrlDict(parsableHTML, baseUrl, titleNames) -> dict:
     soup = BeautifulSoup(parsableHTML, "html.parser")
 
     # The idea with this dictionary was to have the keys be the state of the bill, and the values be a list of the urls of the bills
@@ -23,8 +26,6 @@ def createBillUrlDict(parsableHTML, baseUrl):
         "Enrolled": [],
         "Adopted": [],
     }
-
-    titleNames = ["Introduced", "Passed by Chamber", "Enrolled", "Adopted"]
 
     # Loop through each section by the title of the section
     for name in titleNames:
@@ -52,7 +53,7 @@ def createBillUrlDict(parsableHTML, baseUrl):
 
 
 # This will get an html object from a specified url
-def getWebpageContents(url):
+def getWebpageContents(url) -> str:
     response = requests.get(url)
 
     if response.status_code == 200:
@@ -63,7 +64,7 @@ def getWebpageContents(url):
 
 
 # This ideally will return a dictionary of the HTML files that contain the actual contents of the bills
-def getListOfBillHTMLFiles(baseUrl, billDict, billStatusString):
+def getListOfBillHTMLFiles(baseUrl, billDict, billStatusString) -> dict:
 
     # This will be the return value
     billNameStatusAndHtmlLinkDict = {}
@@ -112,6 +113,7 @@ def getListOfBillHTMLFiles(baseUrl, billDict, billStatusString):
                         for element in billStatusHTMLKeyWords
                     ):
                         print(f"Found the {billStatusString} bill")
+                        billNameStatusAndHtmlLinkDict["Bill Status"] = billStatusString
                         isCurrentStateHTMLDoc = True
                     else:
                         ValueError(
@@ -125,21 +127,22 @@ def getListOfBillHTMLFiles(baseUrl, billDict, billStatusString):
                     billDocHtmlEle = billDocRow.find("div", class_="html")
                     billDocumentHtmlLink = billDocHtmlEle.find("a")["href"]
                     billDocumentFullLink = baseUrl + billDocumentHtmlLink
-                    billDocTextEle = billDocRow.find("div", class_="text")
-                    span_element = billDocTextEle.find("span")
-                    if span_element:
-                        strong_element = span_element.find("strong")
-                    if strong_element:
-                        strong_text = strong_element.get_text()
-                    tuple = (strong_text, billDocumentFullLink)
                     if billName in billNameStatusAndHtmlLinkDict:
-                        billNameStatusAndHtmlLinkDict[billName].append(tuple)
+                        billNameStatusAndHtmlLinkDict[billName].append(
+                            billDocumentFullLink
+                        )
                     else:
-                        billNameStatusAndHtmlLinkDict[billName] = [tuple]
+                        billNameStatusAndHtmlLinkDict[billName] = [billDocumentFullLink]
                 # --------------------------------------------------------------
 
     print(f"This is the {billStatusString} dictionary")
     print(billNameStatusAndHtmlLinkDict)
+    if not billNameStatusAndHtmlLinkDict:
+        print(
+            f"The {billStatusString} dictionary is empty for the provided time range. Exiting process..."
+        )
+        sys.exit()
+    return billNameStatusAndHtmlLinkDict
 
 
 # Returns date interpolated url
@@ -169,34 +172,68 @@ def interpolateURLWithDate(dailyReportUrl, startDate, endDate):
     return return_url
 
 
-def getBillDocuments(billHTMLList):
-    print("placeholder")
+def getBillDocuments(billHTMLDict):
+    billStatus = billHTMLDict.get("Bill Status")
+    print(f"The bill status of this dictionary is {billStatus}")
+    # For each key in the dictionary, take the value
+    # For the value, assign it to a soup object
+    # For each soup object, getalltext
+    # For all text, pass into summarize function
+    for billKey, billValues in itertools.islice(billHTMLDict.items(), 1, None):
+        print(f"Getting information for {billKey}...")
+        for billValue in billValues:
+            currentBillHtml = getWebpageContents(billValue)
+            soup = BeautifulSoup(currentBillHtml, "html.parser")
+            all_bill_text = soup.get_text()
+            summarizedBill = ChatSummarize.SummarizeBillInfo(
+                billStatus, billKey, all_bill_text
+            )
+            with open("page_text.txt", "a", encoding="utf-8") as file:
+                file.write(str(summarizedBill))
+                file.write("----------------------------------------------")
+            time.sleep(10)
+
+
+def process_task(base_url, billDict, status, queue):
+    htmlDict = getListOfBillHTMLFiles(base_url, billDict, status)
+    queue.put(htmlDict)
 
 
 def main():
-    html_url = "https://legislature.mi.gov/documents/2023-2024/billconcurred/House/htm/2023-HCB-5103.htm"
-    html_object = getWebpageContents(html_url)
-    soup = BeautifulSoup(html_object, 'html.parser')
-    all_text = soup.get_text()
-    with open('page_text.txt', 'w', encoding='utf-8') as file:
-        file.write(all_text)
+    test()
+    # html_url = "https://legislature.mi.gov/documents/2023-2024/billconcurred/House/htm/2023-HCB-5103.htm"
+    # html_object = getWebpageContents(html_url)
+    # soup = BeautifulSoup(html_object, "html.parser")
+    # all_text = soup.get_text()
+    # with open("page_text.txt", "w", encoding="utf-8") as file:
+    #    file.write(all_text)
 
 
 def test():
+    titleNames = ["Introduced", "Passed by Chamber", "Enrolled", "Adopted"]
     base_url = "https://legislature.mi.gov"
     daily_report_url = "https://legislature.mi.gov/Bills/DailyReport"
-    url = "https://legislature.mi.gov/Bills/DailyReport?dateFrom=2024-03-29&dateTo=2024-04-09"
-    dail_rep_url = interpolateURLWithDate(daily_report_url, "2024-03-09", "2024-04-09")
+    dail_rep_url = interpolateURLWithDate(daily_report_url, "2024-03-11", "2024-03-12")
     html_object = getWebpageContents(dail_rep_url)
-    billDict = createBillUrlDict(html_object, base_url)
-    print("Checking introduced bills")
-    getListOfBillHTMLFiles(base_url, billDict, "Introduced")
-    print("Checking passed bills")
-    getListOfBillHTMLFiles(base_url, billDict, "Passed by Chamber")
-    print("Checking enrolled bills")
-    getListOfBillHTMLFiles(base_url, billDict, "Enrolled")
-    print("Checking adopted bills")
-    getListOfBillHTMLFiles(base_url, billDict, "Adopted")
+    billDict = createBillUrlDict(html_object, base_url, titleNames)
+
+    results_queue = multiprocessing.Queue()
+
+    processes = []
+    for status in titleNames:
+        process = multiprocessing.Process(
+            target=process_task, args=(base_url, billDict, status, results_queue)
+        )
+        processes.append(process)
+        process.start()
+
+    for process in processes:
+        process.join()
+
+    while not results_queue.empty():
+        htmlDict = results_queue.get()
+        # Do something with status and result, e.g., pass them to another function
+        getBillDocuments(htmlDict)
 
 
 if __name__ == "__main__":
