@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
 import requests
-import ChatSummarize
+import chat_summarize
 from datetime import datetime
 import multiprocessing
 import sys
@@ -8,11 +8,12 @@ import time
 import itertools
 
 
-# This function will return a dictionary containing the urls of bills and resolutions
 def create_bill_url_dict(parsable_html, base_url, title_names) -> dict:
+    """This function will return a dictionary containing the urls of bills and resolutions"""
     soup = BeautifulSoup(parsable_html, "html.parser")
 
-    # The idea with this dictionary was to have the keys be the state of the bill, and the values be a list of the urls of the bills
+    # The idea with this dictionary was to have the keys be the state of the bill
+    # and the values be a list of the urls of the bills
     bill_url_dictionary = {
         "Introduced": [],
         "Passed by Chamber": [],
@@ -25,14 +26,16 @@ def create_bill_url_dict(parsable_html, base_url, title_names) -> dict:
         # Assign the title object of the section to title_element
         title_element = soup.find("h3", text=name)
 
-        # For the MI case, I think the next sibling is always table, but I put the cycle through siblings in anyway
+        # For the MI case, I think the next sibling is always table
+        # but I put the cycle through siblings in anyway
         if title_element:
             table_element = title_element.find_next_sibling()
 
         if table_element:
             tbody = table_element.find("tbody")
 
-            # Check if the tbody element exists, the get the href value from the <a> element and assign it to the dictionary
+            # Check if the tbody element exists, the get the href value
+            # from the <a> element and assign it to the dictionary
             if tbody:
                 for table_row in tbody.find_all("tr"):
                     first_data_cell = table_row.find("td")
@@ -45,8 +48,8 @@ def create_bill_url_dict(parsable_html, base_url, title_names) -> dict:
     return bill_url_dictionary
 
 
-# This will get an html object from a specified url
 def get_webpage_contents(url) -> str:
+    """This will get an html object from a specified url"""
     response = requests.get(url)
 
     if response.status_code == 200:
@@ -56,8 +59,9 @@ def get_webpage_contents(url) -> str:
     return html_content
 
 
-# This ideally will return a dictionary of the HTML files that contain the actual contents of the bills
 def get_list_of_bill_html_files(base_url, bill_dict, bill_status_string) -> dict:
+    """This ideally will return a dictionary of the HTML
+    files that contain the actual contents of the bills"""
 
     # This will be the return value
     bill_name_status_and_html_link_dict = {}
@@ -86,7 +90,9 @@ def get_list_of_bill_html_files(base_url, bill_dict, bill_status_string) -> dict
         # Assign HTML to soup object
         soup = BeautifulSoup(bill_html, "html.parser")
 
-        # Getting the name of the bill (this is gonna be weird if the text has hyperlinks inside of hrefs, but we'll figure that out later)
+        # Getting the name of the bill (this is gonna be weird
+        # if the text has hyperlinks inside of hrefs
+        # but we'll figure that out later)
         bill_name_header = soup.find("h1", id="BillHeading")
         bill_name = bill_name_header.get_text()
 
@@ -117,7 +123,9 @@ def get_list_of_bill_html_files(base_url, bill_dict, bill_status_string) -> dict
                             f"Could not find the keyword relating to {bill_status_string} for {bill_name}"
                         )
 
-                # This will append the status of the bill and the .html link to the dictionary if the string accompanying the html doc matches up with the bill_status_string that is passed in
+                # This will append the status of the bill and the .html link
+                # to the dictionary if the string accompanying the html doc
+                # matches up with the bill_status_string that is passed in
                 # TODO: Potentially also turn this into a function
                 # --------------------------------------------------------------
                 if is_current_state_html_doc is True:
@@ -144,18 +152,19 @@ def get_list_of_bill_html_files(base_url, bill_dict, bill_status_string) -> dict
     return bill_name_status_and_html_link_dict
 
 
-# Returns date interpolated url
 def interpolate_url_with_date(daily_report_url, start_date, end_date):
+    """Returns date interpolated url"""
     # Set the default to return the results for the day
     return_url = daily_report_url
-    # Checks if both start and end date are empty, and if they are, returns the bare daily_report_url
+    # Checks if both start and end date are empty
+    # and if they are, returns the bare daily_report_url
     if not start_date and not end_date:
         return return_url
 
     # Errors out if the end_date is provided with no start_date
     if end_date and not start_date:
         SyntaxError(
-            "ERROR - Passed in end_date but no start_date for the interpolate_url_with_date function."
+            "ERROR - Passed in end_date but no start_datefor the interpolate_url_with_date function."
         )
 
     start_date = datetime.strptime(start_date, "%Y-%m-%d")
@@ -172,6 +181,8 @@ def interpolate_url_with_date(daily_report_url, start_date, end_date):
 
 
 def get_bill_summary(bill_html_dict):
+    """This function calls the chat_summarize module and gets the summary
+    for each bill in the dictionary"""
     bill_status = bill_html_dict.get("Bill Status")
     print(f"The bill status of this dictionary is {bill_status}")
     # For each key in the dictionary, take the value
@@ -184,7 +195,7 @@ def get_bill_summary(bill_html_dict):
             current_bill_html = get_webpage_contents(bill_value)
             soup = BeautifulSoup(current_bill_html, "html.parser")
             all_bill_text = soup.get_text()
-            summarized_bill = ChatSummarize.summarize_bill_info(
+            summarized_bill = chat_summarize.summarize_bill_info(
                 bill_status, bill_key, all_bill_text
             )
             with open("page_text.txt", "a", encoding="utf-8") as file:
@@ -194,6 +205,9 @@ def get_bill_summary(bill_html_dict):
 
 
 def process_task(base_url, bill_dict, status, queue):
+    """This is a herlp function to get the return values
+    from get_list_of_bill_html_files back and put onto
+    a queue"""
     htmlDict = get_list_of_bill_html_files(base_url, bill_dict, status)
     queue.put(htmlDict)
 
