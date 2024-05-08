@@ -1,3 +1,5 @@
+"""This module is the main module for the Pylitical app"""
+
 from datetime import datetime
 import multiprocessing
 import sys
