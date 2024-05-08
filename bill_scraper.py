@@ -121,7 +121,7 @@ def get_list_of_bill_html_files(base_url, bill_dict, bill_status_string) -> dict
                         is_current_state_html_doc = True
                     else:
                         raise ValueError(
-                            f"""Could not find the keyword relating 
+                            f"""Could not find the keyword relating
                             to {bill_status_string} for {bill_name}"""
                         )
                 append_valid_bill_status_to_dict(
@@ -136,7 +136,7 @@ def get_list_of_bill_html_files(base_url, bill_dict, bill_status_string) -> dict
     print(bill_name_status_and_html_link_dict)
     if not bill_name_status_and_html_link_dict:
         print(
-            f"""The {bill_status_string} dictionary is empty 
+            f"""The {bill_status_string} dictionary is empty
             for the provided time range. Exiting process..."""
         )
         sys.exit()
