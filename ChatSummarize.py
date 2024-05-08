@@ -10,7 +10,7 @@ google_api_key = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=google_api_key)
 
 
-def summarize_bill_info(billStatus, billName, billText):
+def summarize_bill_info(bill_status, bill_name, bill_text):
     instruction = """You are going to be summarizing bills and resolutions that
     are currently being deliberated or have already been enrolled by the Michigan congress.
     In the prompt i'm going to pass you the state of the bill or resolution, the name of
@@ -21,7 +21,7 @@ def summarize_bill_info(billStatus, billName, billText):
     model = genai.GenerativeModel(
         model_name="gemini-1.5-pro-latest", system_instruction=instruction
     )
-    prompt = billName + billStatus + billText
+    prompt = bill_name + bill_status + bill_text
     response = model.generate_content(prompt)
 
     return response
