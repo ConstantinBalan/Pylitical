@@ -20,6 +20,8 @@ jobs:
         pip install pylint
         pip install bs4
         pip install requests
+        pip install python-dotenv
+        pip install google-generativeai
         
     - name: Analysing the code with pylint
       run: |
