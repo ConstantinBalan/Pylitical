@@ -107,7 +107,6 @@ def get_list_of_bill_html_files(base_url, bill_dict, bill_status_string) -> dict
             ):
                 is_current_state_html_doc = False
                 # Conditional to check if this is the introduced bill version
-                # TODO:Make this a function eventually or something
                 text_div = bill_doc_row.find("div", class_="text")
                 if text_div:
                     strong_text = text_div.find("strong")
@@ -122,7 +121,8 @@ def get_list_of_bill_html_files(base_url, bill_dict, bill_status_string) -> dict
                         is_current_state_html_doc = True
                     else:
                         raise ValueError(
-                            f"Could not find the keyword relating to {bill_status_string} for {bill_name}"
+                            f"""Could not find the keyword relating 
+                            to {bill_status_string} for {bill_name}"""
                         )
                 append_valid_bill_status_to_dict(
                     base_url,
@@ -136,7 +136,8 @@ def get_list_of_bill_html_files(base_url, bill_dict, bill_status_string) -> dict
     print(bill_name_status_and_html_link_dict)
     if not bill_name_status_and_html_link_dict:
         print(
-            f"The {bill_status_string} dictionary is empty for the provided time range. Exiting process..."
+            f"""The {bill_status_string} dictionary is empty 
+            for the provided time range. Exiting process..."""
         )
         sys.exit()
     return bill_name_status_and_html_link_dict
@@ -176,7 +177,8 @@ def interpolate_url_with_date(daily_report_url, start_date, end_date):
     # Errors out if the end_date is provided with no start_date
     if end_date and not start_date:
         raise SyntaxError(
-            "ERROR - Passed in end_date but no start_datefor the interpolate_url_with_date function."
+            """ERROR - Passed in end_date but no start_date 
+            for the interpolate_url_with_date function."""
         )
 
     start_date = datetime.strptime(start_date, "%Y-%m-%d")
@@ -185,7 +187,7 @@ def interpolate_url_with_date(daily_report_url, start_date, end_date):
     # Checks if the date ranges are valid
     if start_date < end_date:
         raise ValueError("ERROR - Start date is before end date.")
-    elif start_date == end_date:
+    if start_date == end_date:
         raise ValueError("ERROR - Start date is the same as end date.")
 
     return_url = f"{daily_report_url}?dateFrom={start_date}&dateTo={end_date}"
