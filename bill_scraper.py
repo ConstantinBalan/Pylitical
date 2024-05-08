@@ -1,11 +1,11 @@
-from bs4 import BeautifulSoup
-import requests
-import chat_summarize
 from datetime import datetime
 import multiprocessing
 import sys
 import time
 import itertools
+from bs4 import BeautifulSoup
+import requests
+import chat_summarize
 
 
 def create_bill_url_dict(parsable_html, base_url, title_names) -> dict:
@@ -50,12 +50,11 @@ def create_bill_url_dict(parsable_html, base_url, title_names) -> dict:
 
 def get_webpage_contents(url) -> str:
     """This will get an html object from a specified url"""
-    response = requests.get(url)
-
-    if response.status_code == 200:
+    try:
+        response = requests.get(url)
         html_content = response.text
-    else:
-        print(f"Failed to fetch HTML from {url}. Status code: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(e)
     return html_content
 
 
@@ -208,15 +207,17 @@ def process_task(base_url, bill_dict, status, queue):
     """This is a herlp function to get the return values
     from get_list_of_bill_html_files back and put onto
     a queue"""
-    htmlDict = get_list_of_bill_html_files(base_url, bill_dict, status)
-    queue.put(htmlDict)
+    html_dict = get_list_of_bill_html_files(base_url, bill_dict, status)
+    queue.put(html_dict)
 
 
 def main():
+    """This is the main function"""
     test()
 
 
 def test():
+    """This is a test function of the summarization workflow"""
     title_names = ["Introduced", "Passed by Chamber", "Enrolled", "Adopted"]
     base_url = "https://legislature.mi.gov"
     daily_report_url = "https://legislature.mi.gov/Bills/DailyReport"
@@ -240,8 +241,8 @@ def test():
         process.join()
 
     while not results_queue.empty():
-        htmlDict = results_queue.get()
-        get_bill_summary(htmlDict)
+        html_dict = results_queue.get()
+        get_bill_summary(html_dict)
 
 
 if __name__ == "__main__":
