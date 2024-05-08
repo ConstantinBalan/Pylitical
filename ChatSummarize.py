@@ -10,7 +10,7 @@ google_api_key = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=google_api_key)
 
 
-def SummarizeBillInfo(billStatus, billName, billText):
+def summarize_bill_info(billStatus, billName, billText):
     instruction = """You are going to be summarizing bills and resolutions that
     are currently being deliberated or have already been enrolled by the Michigan congress.
     In the prompt i'm going to pass you the state of the bill or resolution, the name of
