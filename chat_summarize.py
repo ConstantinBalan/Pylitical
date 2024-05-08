@@ -1,7 +1,9 @@
-import pathlib
-import textwrap
-from dotenv import load_dotenv
+"""This module is meant to intake bill information formatted
+as a string, and returns a summarized version of the bill
+also as a string"""
+
 import os
+from dotenv import load_dotenv
 import google.generativeai as genai
 
 load_dotenv()
@@ -10,7 +12,9 @@ google_api_key = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=google_api_key)
 
 
-def SummarizeBillInfo(billStatus, billName, billText):
+def summarize_bill_info(bill_status, bill_name, bill_text):
+    """This function will return the summarized version of the
+    passed in bill text"""
     instruction = """You are going to be summarizing bills and resolutions that
     are currently being deliberated or have already been enrolled by the Michigan congress.
     In the prompt i'm going to pass you the state of the bill or resolution, the name of
@@ -21,7 +25,7 @@ def SummarizeBillInfo(billStatus, billName, billText):
     model = genai.GenerativeModel(
         model_name="gemini-1.5-pro-latest", system_instruction=instruction
     )
-    prompt = billName + billStatus + billText
+    prompt = bill_name + bill_status + bill_text
     response = model.generate_content(prompt)
 
     return response
