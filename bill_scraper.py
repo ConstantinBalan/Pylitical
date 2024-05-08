@@ -53,10 +53,10 @@ def create_bill_url_dict(parsable_html, base_url, title_names) -> dict:
 def get_webpage_contents(url) -> str:
     """This will get an html object from a specified url"""
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         html_content = response.text
     except requests.exceptions.RequestException as e:
-        raise SystemExit(e)
+        raise SystemExit() from e
     return html_content
 
 
@@ -80,8 +80,9 @@ def get_list_of_bill_html_files(base_url, bill_dict, bill_status_string) -> dict
         case "Adopted":
             bill_status_html_keywords.append("Adopted")
         case _:
-            NameError(
-                "The case check in get_list_of_bill_html_files wasn't able to match a string."
+            raise NameError(
+                """The case check in get_list_of_bill_html_files
+                wasn't able to match a string."""
             )
 
     # This is for the bills/resolutions for the Introduced section
@@ -120,28 +121,16 @@ def get_list_of_bill_html_files(base_url, bill_dict, bill_status_string) -> dict
                         )
                         is_current_state_html_doc = True
                     else:
-                        ValueError(
+                        raise ValueError(
                             f"Could not find the keyword relating to {bill_status_string} for {bill_name}"
                         )
-
-                # This will append the status of the bill and the .html link
-                # to the dictionary if the string accompanying the html doc
-                # matches up with the bill_status_string that is passed in
-                # TODO: Potentially also turn this into a function
-                # --------------------------------------------------------------
-                if is_current_state_html_doc is True:
-                    bill_doc_html_ele = bill_doc_row.find("div", class_="html")
-                    bill_document_html_link = bill_doc_html_ele.find("a")["href"]
-                    bill_document_full_link = base_url + bill_document_html_link
-                    if bill_name in bill_name_status_and_html_link_dict:
-                        bill_name_status_and_html_link_dict[bill_name].append(
-                            bill_document_full_link
-                        )
-                    else:
-                        bill_name_status_and_html_link_dict[bill_name] = [
-                            bill_document_full_link
-                        ]
-                # --------------------------------------------------------------
+                append_valid_bill_status_to_dict(
+                    base_url,
+                    bill_name_status_and_html_link_dict,
+                    bill_name,
+                    bill_doc_row,
+                    is_current_state_html_doc,
+                )
 
     print(f"This is the {bill_status_string} dictionary")
     print(bill_name_status_and_html_link_dict)
@@ -151,6 +140,28 @@ def get_list_of_bill_html_files(base_url, bill_dict, bill_status_string) -> dict
         )
         sys.exit()
     return bill_name_status_and_html_link_dict
+
+
+def append_valid_bill_status_to_dict(
+    base_url,
+    bill_name_status_and_html_link_dict,
+    bill_name,
+    bill_doc_row,
+    is_current_state_html_doc,
+):
+    """This will append the status of the bill and the .html link
+    to the dictionary if the string accompanying the html doc
+    matches up with the bill_status_string that is passed in"""
+    if is_current_state_html_doc is True:
+        bill_doc_html_ele = bill_doc_row.find("div", class_="html")
+        bill_document_html_link = bill_doc_html_ele.find("a")["href"]
+        bill_document_full_link = base_url + bill_document_html_link
+        if bill_name in bill_name_status_and_html_link_dict:
+            bill_name_status_and_html_link_dict[bill_name].append(
+                bill_document_full_link
+            )
+        else:
+            bill_name_status_and_html_link_dict[bill_name] = [bill_document_full_link]
 
 
 def interpolate_url_with_date(daily_report_url, start_date, end_date):
@@ -164,7 +175,7 @@ def interpolate_url_with_date(daily_report_url, start_date, end_date):
 
     # Errors out if the end_date is provided with no start_date
     if end_date and not start_date:
-        SyntaxError(
+        raise SyntaxError(
             "ERROR - Passed in end_date but no start_datefor the interpolate_url_with_date function."
         )
 
@@ -173,9 +184,9 @@ def interpolate_url_with_date(daily_report_url, start_date, end_date):
 
     # Checks if the date ranges are valid
     if start_date < end_date:
-        ValueError("ERROR - Start date is before end date.")
+        raise ValueError("ERROR - Start date is before end date.")
     elif start_date == end_date:
-        ValueError("ERROR - Start date is the same as end date.")
+        raise ValueError("ERROR - Start date is the same as end date.")
 
     return_url = f"{daily_report_url}?dateFrom={start_date}&dateTo={end_date}"
     return return_url
