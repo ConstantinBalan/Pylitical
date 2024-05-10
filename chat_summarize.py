@@ -2,6 +2,7 @@
 as a string, and returns a summarized version of the bill
 also as a string"""
 
+# pylint: disable=W0212
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
