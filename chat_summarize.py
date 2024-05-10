@@ -27,5 +27,7 @@ def summarize_bill_info(bill_status, bill_name, bill_text):
     )
     prompt = bill_name + bill_status + bill_text
     response = model.generate_content(prompt)
+    content = response._result.candidates[0].content
+    response_text = content.parts[0].text
 
-    return response
+    return response_text

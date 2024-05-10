@@ -102,11 +102,9 @@ def get_list_of_bill_html_files(base_url, bill_dict, bill_status_string) -> dict
         bill_documents_div = soup.find("div", class_="billDocuments")
         # print(bill_documents_div)
         if bill_documents_div:
-            for bill_doc_row in bill_documents_div.find_all(
-                "div", class_="bill_doc_row"
-            ):
+            for bill_doc_row in bill_documents_div.find_all("div", class_="billDocRow"):
                 is_current_state_html_doc = False
-                # Conditional to check if this is the introduced bill version
+                # Conditional to check if this is the current bill version
                 text_div = bill_doc_row.find("div", class_="text")
                 if text_div:
                     strong_text = text_div.find("strong")
@@ -119,11 +117,6 @@ def get_list_of_bill_html_files(base_url, bill_dict, bill_status_string) -> dict
                             bill_status_string
                         )
                         is_current_state_html_doc = True
-                    else:
-                        raise ValueError(
-                            f"""Could not find the keyword relating
-                            to {bill_status_string} for {bill_name}"""
-                        )
                 append_valid_bill_status_to_dict(
                     base_url,
                     bill_name_status_and_html_link_dict,
@@ -185,7 +178,7 @@ def interpolate_url_with_date(daily_report_url, start_date, end_date):
     end_date = datetime.strptime(end_date, "%Y-%m-%d")
 
     # Checks if the date ranges are valid
-    if start_date < end_date:
+    if start_date > end_date:
         raise ValueError("ERROR - Start date is before end date.")
     if start_date == end_date:
         raise ValueError("ERROR - Start date is the same as end date.")
