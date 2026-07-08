@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import os
 import time
 
 from dotenv import load_dotenv
@@ -11,6 +12,7 @@ from pylitical import (
     BillSummarizer,
     ScraperError,
     SummarizerError,
+    publish,
     render,
 )
 
@@ -65,6 +67,11 @@ def main():
                 break
 
     output_dir = render(bills, args.output_dir)
+
+    bucket = os.environ.get("OUTPUT_BUCKET")
+    if bucket:
+        publish(output_dir, bucket)
+
     logging.info("Done: open %s/index.html", output_dir)
 
 

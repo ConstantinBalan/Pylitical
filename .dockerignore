@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+venv/
+.venv/
+output/
+
+*.md
+page_text.txt
+.env
+.git/
