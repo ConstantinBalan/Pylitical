@@ -1,1 +1,22 @@
+# Secrets
 .env
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# App output
+page_text.txt
+output/
+
+# macOS
+.DS_Store
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+crash.log
