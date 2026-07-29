@@ -95,8 +95,11 @@ def main():
 
     try:
         store = make_store(args.store)
-    except StoreError:
-        logging.exception("Could not open the archive store")
+        # Fail here, before any API is queried, rather than part-way through a
+        # collection that has already spent quota.
+        store.verify()
+    except StoreError as exc:
+        logging.error("Archive store unavailable: %s", exc)
         return 1
     archive = Archive(store)
 

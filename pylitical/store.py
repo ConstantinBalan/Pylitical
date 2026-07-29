@@ -63,6 +63,13 @@ class LocalStore:
     def exists(self, key) -> bool:
         return self._path(key).exists()
 
+    def verify(self) -> None:
+        """Matches the R2 interface so callers need not care which backend."""
+        probe = "_preflight/roundtrip.json"
+        self.put_json(probe, {"ok": True})
+        if self.get_json(probe) != {"ok": True}:
+            raise StoreError(f"Local store roundtrip failed under {self._root}")
+
     def list_prefix(self, prefix) -> list:
         base = self._path(prefix)
         if not base.exists():
@@ -100,8 +107,13 @@ class R2Store:
             raise StoreError(f"R2 store missing configuration: {', '.join(missing)}")
 
         # Imported here so the local store works without boto3 installed.
-        import boto3  # pylint: disable=import-outside-toplevel
-        from botocore.config import Config  # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import ClientError
+
+        # Kept on the instance because boto3 is not imported at module scope.
+        self._client_error = ClientError
 
         self._client = boto3.client(
             "s3",
@@ -112,6 +124,34 @@ class R2Store:
             config=Config(signature_version="s3v4", retries={"max_attempts": 3}),
         )
 
+    def _explain(self, exc, key, operation):
+        """Turn an opaque S3 error code into something actionable.
+
+        R2 has two credential systems and this project uses two buckets, so a
+        raw `AccessDenied` traceback almost never points at the real mistake --
+        which is usually the wrong one of four similar-looking values.
+        """
+        code = (getattr(exc, "response", {}).get("Error") or {}).get("Code", "")
+        hints = {
+            "AccessDenied": (
+                f"credentials are valid but not authorised to {operation} in "
+                f"bucket {self._bucket!r}. The token must be scoped to THIS "
+                "bucket with Object Read & Write. The pylitical-tfstate token "
+                "will not work here -- they are separate tokens."
+            ),
+            "NoSuchBucket": f"bucket {self._bucket!r} does not exist in this account.",
+            "InvalidAccessKeyId": (
+                "R2_ACCESS_KEY_ID is not recognised. It must be the 32-character "
+                "Access Key ID from the S3-compatible section, not the token value."
+            ),
+            "SignatureDoesNotMatch": (
+                "R2_SECRET_ACCESS_KEY does not match the access key ID "
+                "(expected 64 hex characters)."
+            ),
+        }
+        detail = hints.get(code) or f"{code or type(exc).__name__}: {exc}"
+        return StoreError(f"R2 {operation} failed for {key!r}: {detail}")
+
     def get_json(self, key):
         try:
             response = self._client.get_object(Bucket=self._bucket, Key=key)
@@ -120,14 +160,19 @@ class R2Store:
             return None
         except json.JSONDecodeError as exc:
             raise StoreError(f"Corrupt JSON at {key}") from exc
+        except self._client_error as exc:
+            raise self._explain(exc, key, "read") from exc
 
     def put_json(self, key, data) -> None:
-        self._client.put_object(
-            Bucket=self._bucket,
-            Key=key,
-            Body=json.dumps(data, sort_keys=True).encode("utf-8"),
-            ContentType="application/json",
-        )
+        try:
+            self._client.put_object(
+                Bucket=self._bucket,
+                Key=key,
+                Body=json.dumps(data, sort_keys=True).encode("utf-8"),
+                ContentType="application/json",
+            )
+        except self._client_error as exc:
+            raise self._explain(exc, key, "write") from exc
 
     def exists(self, key) -> bool:
         try:
@@ -135,6 +180,17 @@ class R2Store:
             return True
         except Exception:  # pylint: disable=broad-except
             return False
+
+    def verify(self) -> None:
+        """Read/write roundtrip against a scratch key. Raises StoreError if not.
+
+        Cheaper to run at startup than to discover mid-collection, after the
+        APIs have already been queried.
+        """
+        probe = "_preflight/roundtrip.json"
+        self.put_json(probe, {"ok": True})
+        if self.get_json(probe) != {"ok": True}:
+            raise StoreError(f"R2 roundtrip mismatch in bucket {self._bucket!r}")
 
     def list_prefix(self, prefix) -> list:
         keys = []
