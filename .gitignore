@@ -1,15 +1,26 @@
 # Secrets
 .env
+env.sh
+infra/**/env.sh
 
 # Python
 __pycache__/
 *.pyc
 venv/
 .venv/
+usage/
+store_data/
 
 # App output
 page_text.txt
 output/
+digest.json
+
+# Worker
+node_modules/
+.wrangler/
+worker/.dev.vars
+worker/.test-bundle.mjs
 
 # macOS
 .DS_Store
@@ -19,4 +30,5 @@ output/
 *.tfstate
 *.tfstate.backup
 *.tfvars
+*.tfvars.json
 crash.log

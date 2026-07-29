@@ -1,0 +1,40 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+#
+# The Cloudflare API token is NOT here on purpose -- export it instead:
+#   export CLOUDFLARE_API_TOKEN=...
+# so it never lands in a file that can be committed.
+
+account_id   = "0123456789abcdef0123456789abcdef"
+project_name = "pylitical"
+
+# Leave both empty until you own a domain. The site still deploys to
+# <project>.pages.dev; only email needs a real domain.
+zone_id = ""
+domain  = ""
+
+# Defaults to the pages.dev hostname plus `domain` when left empty.
+turnstile_domains = []
+
+# Copy verbatim from Resend > Domains > (your domain) after adding it there.
+resend_dns_records = [
+  # {
+  #   name    = "send.example.com"
+  #   type    = "TXT"
+  #   content = "v=spf1 include:amazonses.com ~all"
+  # },
+  # {
+  #   name    = "resend._domainkey.example.com"
+  #   type    = "TXT"
+  #   content = "p=MIGfMA0GCSq..."
+  # },
+  # {
+  #   name     = "send.example.com"
+  #   type     = "MX"
+  #   content  = "feedback-smtp.us-east-1.amazonses.com"
+  #   priority = 10
+  # },
+]
+
+# Start at "none" and watch the reports for a couple of weeks before tightening.
+dmarc_policy       = "none"
+dmarc_report_email = ""
