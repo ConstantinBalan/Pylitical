@@ -1,0 +1,88 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pylitical-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "observability": {
+    "enabled": true
+  },
+
+  // Currently the only way to reach the API. Flip to false once
+  // api.<domain> is live, so there is one public origin instead of two.
+  "workers_dev": true,
+
+  // Every version would otherwise get its own public URL, and those URLs bind
+  // to the same D1 UUID and the same secrets as production -- there is no
+  // separate preview database. Deploying a security fix would not retire the
+  // vulnerable version; it would stay reachable and still writing to the real
+  // subscriber table.
+  "preview_urls": false,
+  // `database_id` is filled in from the Terraform output `d1_database_id`.
+  // It is not a secret (it is an account-scoped identifier, useless without
+  // credentials), so keeping it in the repo is fine.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pylitical",
+      "database_id": "c45af3f8-8490-4165-8a04-df026f8e3145",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // Approximate, per-datacenter limiters. They blunt floods cheaply but are
+  // NOT authoritative -- the D1 cooldown and the daily counter are. See
+  // docs/THREAT_MODEL.md.
+  "ratelimits": [
+    // Signup attempts from one IP.
+    {
+      "name": "SUBSCRIBE_IP_LIMIT",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 5,
+        "period": 60
+      }
+    },
+    // Signup attempts naming one email address, from anywhere. Blunts a
+    // distributed attempt to mail-bomb a single victim.
+    {
+      "name": "SUBSCRIBE_EMAIL_LIMIT",
+      "namespace_id": "1002",
+      "simple": {
+        "limit": 2,
+        "period": 60
+      }
+    },
+    // Token redemption attempts from one IP. Brute-forcing a 256-bit token is
+    // hopeless anyway; this just stops the noise reaching D1.
+    {
+      "name": "TOKEN_IP_LIMIT",
+      "namespace_id": "1003",
+      "simple": {
+        "limit": 20,
+        "period": 60
+      }
+    }
+  ],
+  "vars": {
+    // Overridden per-environment. SITE_ORIGIN is the sole allowed CORS origin.
+    "SITE_ORIGIN": "https://pylitical.pages.dev",
+    "API_ORIGIN": "https://pylitical-api.constantinbalan96.workers.dev",
+    // Pre-domain: Resend only accepts this sender, and only delivers to the
+    // address on your own Resend account. Swap to digest@<your-domain> in
+    // Phase 5, once the domain is verified.
+    "MAIL_FROM": "Pylitical <onboarding@resend.dev>",
+    "MAIL_REPLY_TO": "",
+    // Only OIDC tokens minted for this repo may trigger a digest send.
+    "GITHUB_REPOSITORY": "ConstantinBalan/Pylitical",
+    // Must match the repository's default branch exactly. Pins the digest
+    // endpoint to trunk, so a token minted by a fork's pull request is
+    // rejected. Change this and redeploy if the default branch ever changes.
+    "GITHUB_REF": "refs/heads/master",
+    "MAX_CONFIRM_EMAILS_PER_DAY": "500",
+    "MAX_DIGEST_EMAILS_PER_DAY": "10000",
+    "MAX_SUBSCRIBERS": "5000"
+  }
+  // Secrets -- never in this file, never in Terraform state. Set with:
+  //   wrangler secret put RESEND_API_KEY
+  //   wrangler secret put TURNSTILE_SECRET_KEY
+  //   wrangler secret put UNSUBSCRIBE_SIGNING_KEY
+}
