@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pylitical — mockup v2</title>
+<style>
+/* One light theme, made properly. No dark mode.
+   Nothing below 15px. Grouping carries the status, so no per-bill labels. */
+:root {
+  --bg: #ffffff;
+  --panel: #f5f7f9;
+  --ink: #14161a;
+  --ink-2: #454d57;
+  --ink-3: #6a727c;
+  --rule: #dde2e8;
+  --rule-strong: #c3ccd6;
+  --accent: #0f4c81;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 17px;
+  line-height: 1.5;
+}
+.wrap { max-width: 44rem; margin: 0 auto; padding: 0 1.25rem; }
+
+/* ---------- masthead ---------- */
+.masthead { padding: 2.25rem 0 0; }
+.masthead h1 {
+  font-size: 2rem; line-height: 1.15; margin: 0 0 .3rem; letter-spacing: -0.02em;
+}
+.masthead p { margin: 0; color: var(--ink-2); font-size: 1.0625rem; }
+
+/* state selector: wraps, never scrolls sideways */
+.states {
+  display: flex; flex-wrap: wrap; gap: .4rem 1.4rem;
+  margin: 1.4rem 0 0; padding: 0 0 .9rem; border-bottom: 2px solid var(--rule-strong);
+  list-style: none;
+}
+.states a { color: var(--ink-2); text-decoration: none; font-size: 1.0625rem; }
+.states a:hover { color: var(--accent); }
+.states a[aria-current="page"] { color: var(--ink); font-weight: 700; }
+.states .pending { color: var(--ink-3); }
+
+/* ---------- day navigation ---------- */
+.daynav {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap; margin: 1.6rem 0 .3rem;
+}
+.daynav h2 { margin: 0; font-size: 1.5rem; letter-spacing: -0.01em; }
+.daynav .links { font-size: 1rem; margin: 0; }
+.daynav .links a { color: var(--accent); text-decoration: none; }
+.daynav .links a:hover { text-decoration: underline; }
+.daynav .links span { color: var(--ink-3); }
+.count { color: var(--ink-2); font-size: 1rem; margin: .3rem 0 2rem; }
+.count a { color: var(--accent); }
+
+/* ---------- status sections ---------- */
+.group { margin: 0 0 2.25rem; }
+.group > h3 {
+  font-size: 1.0625rem; font-weight: 700; margin: 0;
+  padding-bottom: .4rem; border-bottom: 1px solid var(--rule);
+}
+
+/* ---------- bills ---------- */
+.bill { padding: 1.15rem 0; border-bottom: 1px solid var(--rule); }
+.bill:last-child { border-bottom: 0; }
+.bill h4 { margin: 0 0 .15rem; font-size: 1.1875rem; letter-spacing: -0.01em; }
+.bill h4 a { color: var(--ink); text-decoration: none; }
+.bill h4 a:hover { color: var(--accent); text-decoration: underline; }
+.bill .official { margin: 0 0 .7rem; color: var(--ink-2); font-size: 1rem; }
+.bill .summary {
+  margin: 0; font-family: Georgia, "Iowan Old Style", serif;
+  font-size: 1.0625rem; line-height: 1.6;
+}
+.bill .absent { margin: 0; color: var(--ink-3); font-size: 1rem; }
+.bill .meta { margin: .7rem 0 0; font-size: .9375rem; color: var(--ink-3); }
+.bill .meta a { color: var(--ink-3); }
+
+.nothing {
+  border: 1px solid var(--rule); background: var(--panel);
+  padding: 1.5rem; font-size: 1.0625rem; color: var(--ink-2); margin: 1.15rem 0 0;
+}
+
+/* ---------- subscribe ---------- */
+.subscribe { background: var(--panel); border: 1px solid var(--rule); padding: 1.5rem; margin: 2.5rem 0 0; }
+.subscribe h3 { margin: 0 0 .8rem; font-size: 1.25rem; }
+.subscribe label.email { display: block; font-size: 1rem; margin-bottom: .35rem; }
+.row { display: flex; gap: .5rem; flex-wrap: wrap; }
+.row input {
+  flex: 1 1 15rem; font: inherit; padding: .6rem .7rem;
+  border: 1px solid var(--rule-strong); background: #fff; color: var(--ink);
+}
+.row button {
+  font: inherit; font-weight: 600; padding: .6rem 1.4rem; border: 1px solid var(--accent);
+  background: var(--accent); color: #fff; cursor: pointer;
+}
+.picker { border: 0; padding: 0; margin: 1.1rem 0 0; }
+.picker legend { padding: 0; font-size: 1rem; margin-bottom: .4rem; }
+.picker div { display: flex; gap: 1.2rem; flex-wrap: wrap; }
+.picker label { font-size: 1rem; }
+.fineprint { margin: 1.1rem 0 0; font-size: .9375rem; color: var(--ink-3); }
+.slot {
+  margin-top: 1rem; padding: 1rem; border: 1px dashed var(--rule-strong);
+  color: var(--ink-3); font-size: .9375rem;
+}
+
+.sitefoot { margin: 3rem 0 4rem; padding-top: 1.2rem; border-top: 1px solid var(--rule);
+  font-size: .9375rem; color: var(--ink-3); }
+.sitefoot a { color: var(--ink-3); }
+.sitefoot p { margin: 0 0 .35rem; }
+
+.note { background: #fdf6dc; border-bottom: 1px solid #e8dcae; padding: .5rem 0;
+  font-size: .9375rem; color: #5c4a10; }
+</style>
+</head>
+<body>
+
+<div class="note"><div class="wrap">Mockup. Sample content, not live data.</div></div>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>Pylitical</h1>
+    <p>What state legislatures did today, in plain English.</p>
+    <ul class="states">
+      <li><a href="#" aria-current="page">Michigan</a></li>
+      <li><a href="#">Ohio</a></li>
+      <li><a href="#">Wisconsin</a></li>
+      <li><span class="pending">Indiana soon</span></li>
+    </ul>
+  </header>
+
+  <main>
+
+    <div class="daynav">
+      <h2>Tuesday, July 28</h2>
+      <p class="links"><a href="#">← Monday, July 27</a></p>
+    </div>
+    <p class="count">4 items. <a href="#">Browse earlier days</a></p>
+
+    <section class="group">
+      <h3>Introduced</h3>
+
+      <article class="bill">
+        <h4><a href="#">House Bill 5501</a></h4>
+        <p class="official">A bill to amend the Natural Resources and Environmental Protection Act</p>
+        <p class="summary">This bill would require the Department of Environment, Great Lakes, and Energy to establish a grant program for replacing lead service lines. Grants would go to municipalities with populations under 50,000, funded by $4,200,000 from the water infrastructure fund in fiscal year 2027. Municipalities would have five years to finish replacements, and the department would report annually to the legislature.</p>
+        <p class="meta">Sponsored by Rep. A. Nguyen. <a href="#">Read the bill</a></p>
+      </article>
+
+      <article class="bill">
+        <h4><a href="#">House Bill 5502</a></h4>
+        <p class="official">A bill to amend the Michigan Vehicle Code</p>
+        <p class="summary">This bill raises the standard license plate renewal fee from $10 to $15, effective October 2026. It applies to all vehicle owners required to renew their plates in the state.</p>
+        <p class="meta">Sponsored by Rep. D. Okonkwo. <a href="#">Read the bill</a></p>
+      </article>
+    </section>
+
+    <section class="group">
+      <h3>Passed a Chamber</h3>
+      <article class="bill">
+        <h4><a href="#">Senate Bill 402</a></h4>
+        <p class="official">A bill to amend the Revised School Code</p>
+        <p class="summary">This bill changes how districts calculate instructional hours for students in career and technical education programs, allowing work-based learning to count toward the annual requirement. It takes effect at the start of the 2027 school year.</p>
+        <p class="meta">Sponsored by Sen. R. Alvarez. Passed the Senate 24 to 14. <a href="#">Read the bill</a></p>
+      </article>
+    </section>
+
+    <section class="group">
+      <h3>Adopted</h3>
+      <article class="bill">
+        <h4><a href="#">Senate Resolution 135</a></h4>
+        <p class="official">A resolution recognizing the 250th anniversary of the founding of the United States</p>
+        <p class="summary">A ceremonial resolution marking the country's 250th anniversary on July 4th. It carries no legal effect.</p>
+        <p class="meta">Sponsored by Sen. M. Whitfield. <a href="#">Read the resolution</a></p>
+      </article>
+    </section>
+
+    <section class="group">
+      <h3>A day with no activity</h3>
+      <p class="nothing">The Michigan legislature reported nothing on Friday, July 24.</p>
+    </section>
+
+    <section class="subscribe">
+      <h3>Get this by email</h3>
+      <form>
+        <label class="email" for="em">Email address</label>
+        <div class="row">
+          <input id="em" type="email" placeholder="you@example.com">
+          <button type="submit">Subscribe</button>
+        </div>
+        <fieldset class="picker">
+          <legend>States</legend>
+          <div>
+            <label><input type="checkbox" checked> Michigan</label>
+            <label><input type="checkbox"> Ohio</label>
+            <label><input type="checkbox"> Wisconsin</label>
+          </div>
+        </fieldset>
+        <div class="slot">Turnstile widget</div>
+        <p class="fineprint">Nothing is sent on days without activity. Unsubscribe from any email.</p>
+      </form>
+    </section>
+
+  </main>
+
+  <footer class="sitefoot">
+    <p>Summaries are AI-generated and may contain errors. Read the bill before relying on it.</p>
+    <p>Bill data from <a href="https://openstates.org/">Open States</a> and
+       <a href="https://legiscan.com/">LegiScan</a>, licensed under
+       <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.</p>
+  </footer>
+
+</div>
+
+</body>
+</html>
