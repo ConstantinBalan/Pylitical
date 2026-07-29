@@ -11,7 +11,7 @@ legislative records) but because the site should only ever contain the site.
 
 import json
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -28,13 +28,35 @@ def local_report_date():
     return datetime.now(REPORT_TIMEZONE).date()
 
 
+def as_iso_date(value) -> str:
+    """Accept a date, an ISO string, or None.
+
+    The pipeline passes ISO strings (archive keys are strings), while callers
+    that compute a date directly pass a `date`. Rejecting one of those at the
+    boundary is friendlier than an AttributeError three frames down.
+    """
+    if value is None:
+        return local_report_date().isoformat()
+    if isinstance(value, str):
+        # Validate rather than trust: this string becomes the Worker's
+        # per-date replay key, and a malformed one would fail its own
+        # YYYY-MM-DD check with a much less obvious error.
+        try:
+            return date.fromisoformat(value).isoformat()
+        except ValueError as exc:
+            raise ValueError(f"digest_date {value!r} is not an ISO date") from exc
+    return value.isoformat()
+
+
 def build_payload(bills, digest_date=None) -> dict:
     return {
-        "date": (digest_date or local_report_date()).isoformat(),
+        "date": as_iso_date(digest_date),
         "bills": [
             {
                 "name": bill.name,
                 "status": bill.status,
+                "state": bill.state,
+                "title": bill.title,
                 "source_url": bill.source_url,
                 "summary": bill.summary,
             }
