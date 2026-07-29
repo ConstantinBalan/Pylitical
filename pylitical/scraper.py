@@ -40,6 +40,36 @@ class ScraperError(Exception):
     """Raised when a page cannot be fetched."""
 
 
+class BotChallengeError(ScraperError):
+    """The site served a bot-protection interstitial instead of content.
+
+    This is deliberately fatal rather than fail-soft. The challenge page returns
+    HTTP 200, so without this check BeautifulSoup parses it happily, finds none
+    of the elements we look for, and the run reports "0 bills" -- identical to a
+    genuine day with no legislative activity. That would quietly publish an
+    empty site and send no digest, with nothing in the logs to explain why.
+    """
+
+
+# Structural markers from the Radware Bot Manager interstitial. Anchored on the
+# title and the challenge form's action rather than the word "captcha" alone,
+# so ordinary bill text mentioning it cannot trip this.
+_CHALLENGE_MARKERS = (
+    "<title>validation request</title>",
+    "user validation required",
+    "/captcha_resp",
+)
+
+# The interstitial is ~1KB; real pages are far larger. Only inspecting the head
+# of the document keeps this from scanning entire bill documents.
+_CHALLENGE_SCAN_BYTES = 4000
+
+
+def _looks_like_bot_challenge(html_text) -> bool:
+    head = html_text[:_CHALLENGE_SCAN_BYTES].lower()
+    return any(marker in head for marker in _CHALLENGE_MARKERS)
+
+
 class BillScraper:
 
     def __init__(self, base_url=BASE_URL, daily_report_url=DAILY_REPORT_URL):
@@ -71,6 +101,14 @@ class BillScraper:
             try:
                 response = _session().get(url, timeout=30)
                 response.raise_for_status()
+                # Not retried: the block is by client IP, so hammering it would
+                # neither help nor be a decent thing to do to a public site.
+                if _looks_like_bot_challenge(response.text):
+                    raise BotChallengeError(
+                        f"legislature.mi.gov served a bot-protection challenge for {url}. "
+                        "Scraped results would be empty and misleading, so this run is "
+                        "stopping instead of publishing nothing."
+                    )
                 return response.text
             except requests.exceptions.RequestException as exc:
                 last_exc = exc
@@ -121,6 +159,9 @@ class BillScraper:
                 time.sleep(PAGE_DELAY_SECONDS)
             try:
                 bill = self._parse_bill_page(status, bill_url, self._get(bill_url))
+            except BotChallengeError:
+                # Being challenged invalidates the whole run, not one page.
+                raise
             except ScraperError:
                 # One dead page shouldn't sink the whole section.
                 logger.exception("Skipping %s", bill_url)
