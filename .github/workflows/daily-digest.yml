@@ -1,0 +1,153 @@
+name: Daily digest
+
+# 02:30 UTC = 22:30 EDT / 21:30 EST. GitHub cron is UTC-only, so the local time
+# shifts an hour across DST; fine for an evening digest.
+#
+# Two caveats worth remembering:
+#   * Scheduled workflows are disabled automatically after 60 days without
+#     repository activity. A quiet month will silently stop the digest.
+#   * Scheduled runs can be delayed 10-30 minutes at peak times.
+on:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+    inputs:
+      states:
+        description: "Comma-separated state codes (blank uses the repo variable)"
+        type: string
+        default: ""
+      date:
+        description: "Collect a specific day, YYYY-MM-DD (blank means today)"
+        type: string
+        default: ""
+      skip_text:
+        description: "Metadata only — spends no LegiScan quota and no Gemini credit"
+        type: boolean
+        default: false
+      skip_email:
+        description: "Deploy the site but send no email"
+        type: boolean
+        default: false
+
+# Least privilege: read the repo, mint an OIDC token. No write access to
+# contents, packages, or releases.
+permissions:
+  contents: read
+  id-token: write
+
+# Never let two runs collect or mail concurrently. The Worker's per-date replay
+# guard is the real protection, but not racing is cheaper than relying on it.
+concurrency:
+  group: daily-digest
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      # Not secrets: the site origin is public and the Turnstile sitekey is
+      # designed to be embedded in the page.
+      PYLITICAL_API_ORIGIN: ${{ vars.PYLITICAL_API_ORIGIN }}
+      PYLITICAL_TURNSTILE_SITEKEY: ${{ vars.PYLITICAL_TURNSTILE_SITEKEY }}
+      CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+
+      # Archive store. The account ID and bucket name are not secrets -- they
+      # are useless without the credential pair, which is.
+      PYLITICAL_STORE: r2
+      R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+    steps:
+      # Pinned to commit SHAs, not tags. A tag is mutable: whoever controls the
+      # action's repository can repoint v7 at new code, and that code would run
+      # with access to this job's secrets.
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Collect and render
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENSTATES_API_KEY: ${{ secrets.OPENSTATES_API_KEY }}
+          LEGISCAN_API_KEY: ${{ secrets.LEGISCAN_API_KEY }}
+        run: |
+          python __main__.py \
+            --states "${{ inputs.states || vars.PYLITICAL_STATES || 'mi' }}" \
+            ${{ inputs.date && format('--date {0}', inputs.date) || '' }} \
+            ${{ inputs.skip_text && '--skip-text' || '' }} \
+            --output-dir output \
+            --digest-file digest.json \
+            --quota-summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Guard against publishing an empty site
+        run: |
+          if [ ! -s output/index.html ]; then
+            echo "::error::index.html missing or empty; refusing to deploy"
+            exit 1
+          fi
+
+      - name: Deploy to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4.114.0 pages deploy output \
+            --project-name "$CLOUDFLARE_PAGES_PROJECT" \
+            --branch main \
+            --commit-dirty=true
+
+      # No digest.json means nothing was recorded, which is normal when
+      # legislatures are out of session. Quiet days get no email.
+      - name: Check for content to mail
+        id: digest
+        run: |
+          if [ -s digest.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "Nothing recorded today; skipping the digest email."
+          fi
+
+      # The OIDC token is minted per-run by GitHub and expires in minutes. It
+      # carries `repository` and `ref` claims the Worker pins, so it is useless
+      # anywhere else -- unlike a static bearer token sitting in secrets.
+      - name: Send the digest
+        if: steps.digest.outputs.present == 'true' && inputs.skip_email != true
+        env:
+          API_ORIGIN: ${{ vars.PYLITICAL_API_ORIGIN }}
+        run: |
+          set -euo pipefail
+
+          id_token="$(curl -sSf \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${API_ORIGIN}" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])')"
+
+          status="$(curl -sS -X POST "${API_ORIGIN}/admin/send-digest" \
+            -H "Authorization: Bearer ${id_token}" \
+            -H "Content-Type: application/json" \
+            --data-binary @digest.json \
+            -o response.json -w '%{http_code}')"
+
+          echo "Worker responded ${status}:"
+          cat response.json
+          echo
+
+          if [ "${status}" != "200" ]; then
+            echo "::error::digest send failed with HTTP ${status}"
+            exit 1
+          fi

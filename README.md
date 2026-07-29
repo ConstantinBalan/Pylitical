@@ -52,6 +52,27 @@ All flags:
 | `--end-date` | Range end, `YYYY-MM-DD` |
 | `--output-dir` | Output directory (default: `output`) |
 | `--skip-summaries` | Skip the Gemini API; render scraped bills only |
+| `--api-origin` | Worker API origin; with `--turnstile-sitekey`, adds the signup form |
+| `--turnstile-sitekey` | Turnstile site key (public) |
+| `--digest-file` | Write the email digest payload here (skipped when no bills) |
+
+## Deployment
+
+The site is hosted on Cloudflare Pages, the email subscription API is a
+Cloudflare Worker backed by D1, and a daily GitHub Actions cron scrapes,
+publishes, and triggers the digest.
+
+| Path | What it is |
+| --- | --- |
+| `worker/` | Subscription + digest Worker (`npm test`, `npm run typecheck`) |
+| `infra/cloudflare/` | Terraform: D1, Pages, Turnstile, DNS |
+| `.github/workflows/daily-digest.yml` | The daily job |
+| `docs/DEPLOY_RUNBOOK.md` | Ordered first-deploy steps |
+| `docs/THREAT_MODEL.md` | Attack surface, mitigations, known gaps |
+| `infra/` (bootstrap/modules/envs) | The earlier AWS build, kept intact |
+
+Readers subscribe with double opt-in and can unsubscribe in one click from any
+message. Quiet days send no email.
 
 ## Using it as a library
 
