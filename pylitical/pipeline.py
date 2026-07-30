@@ -29,11 +29,20 @@ MAX_SUMMARY_INPUT_CHARS = 30000
 
 
 def normalize_bill_number(identifier) -> str:
-    """`"HB 5501"` and `"HB5501"` are the same bill.
+    """Reduce an identifier to a form both APIs agree on.
 
-    Open States spaces the identifier, LegiScan's master list does not.
+    Two differences to reconcile:
+      * Open States spaces the identifier (`"SR 135"`), LegiScan does not
+      * LegiScan zero-pads the number to four digits (`"SR0135"`)
+
+    The padding mattered more than it looks. Michigan numbers House bills from
+    4001, so they are naturally four digits and matched without stripping zeros
+    -- while every Senate bill, which numbers from 1, silently failed to match
+    and lost its summary. Lettered joint resolutions (`HJRF`) have no digits at
+    all and pass through untouched.
     """
-    return re.sub(r"[^A-Z0-9]", "", (identifier or "").upper())
+    cleaned = re.sub(r"[^A-Z0-9]", "", (identifier or "").upper())
+    return re.sub(r"0*(\d+)", r"\1", cleaned)
 
 
 class DailyRun:
@@ -171,6 +180,29 @@ def _enrich_with_text(ctx, bills):
             _summarize(ctx, bill, document)
 
     ctx.archive.save_hashes(run.state, fresh_hashes)
+    _warn_on_systematic_misses(run, len(bills))
+
+
+def _warn_on_systematic_misses(run, total) -> None:
+    """A few unmatched bills are normal; most of them is a bug.
+
+    Identifier formats differ between the two APIs, and a mismatch degrades
+    silently -- the bills still publish, just without summaries. Worth shouting
+    about rather than leaving to be noticed by eye.
+    """
+    if not total or not run.text_unavailable:
+        return
+    share = run.text_unavailable / total
+    if share >= 0.25:
+        logger.warning(
+            "%s %s: %d of %d bills (%.0f%%) had no LegiScan match. That usually "
+            "means an identifier format mismatch, not missing data.",
+            run.state,
+            run.day,
+            run.text_unavailable,
+            total,
+            100 * share,
+        )
 
 
 def _document_for(ctx, bill, entry, stored_hashes, fresh_hashes):
